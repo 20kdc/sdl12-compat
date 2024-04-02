@@ -396,6 +396,20 @@ OPENGL_SYM(GL_ARB_framebuffer_object,void,glBlitFramebuffer,(GLint a, GLint b, G
 
 OPENGL_EXT(GL_ARB_texture_non_power_of_two)
 
+/* this SHOULD be an extension but SHUSH */
+OPENGL_SYM(Core,GLuint,glCreateShader,(GLenum a),(a),return)
+OPENGL_SYM(Core,void,glShaderSource,(GLuint a, GLsizei b, const GLchar **c, const GLint *d),(a,b,c,d),)
+OPENGL_SYM(Core,void,glCompileShader,(GLuint a),(a),)
+OPENGL_SYM(Core,void,glGetShaderInfoLog,(GLuint a, GLsizei b, GLsizei *c, GLchar *d),(a,b,c,d),)
+OPENGL_SYM(Core,GLuint,glCreateProgram,(),(),return)
+OPENGL_SYM(Core,void,glAttachShader,(GLuint a, GLuint b),(a,b),)
+OPENGL_SYM(Core,void,glLinkProgram,(GLuint a),(a),)
+OPENGL_SYM(Core,void,glGetProgramInfoLog,(GLuint a, GLsizei b, GLsizei *c, GLchar *d),(a,b,c,d),)
+OPENGL_SYM(Core,GLint,glGetUniformLocation,(GLuint a, const GLchar *b),(a,b),return)
+OPENGL_SYM(Core,void,glUseProgram,(GLuint a),(a),)
+OPENGL_SYM(Core,void,glUniform1f,(GLint a, GLfloat b),(a,b),)
+OPENGL_SYM(Core,void,glUniform2f,(GLint a, GLfloat b, GLfloat c),(a,b,c),)
+
 #undef SDL20_SYM
 #undef SDL20_SYM_PASSTHROUGH
 #undef SDL20_SYM_VARARGS

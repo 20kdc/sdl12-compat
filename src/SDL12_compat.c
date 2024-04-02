@@ -1048,6 +1048,9 @@ static GLuint OpenGLLogicalScalingMultisampleDepth = 0;
 static GLuint OpenGLCurrentReadFBO = 0;
 static GLuint OpenGLCurrentDrawFBO = 0;
 static SDL_bool ForceGLSwapBufferContext = SDL_FALSE;
+static GLuint OpenGLScaleShaderProgram = 0;
+static GLint OpenGLScaleShaderUniformResolution = 0;
+static GLint OpenGLScaleShaderUniformTime = 0;
 static SDL12_TimerID AddedTimers = NULL;  /* we'll protect this with EventQueueMutex for laziness/convenience. */
 static SDL_mutex *EventQueueMutex = NULL;
 static EventQueueType EventQueuePool[SDL12_MAXEVENTS];
@@ -5960,6 +5963,51 @@ InitializeOpenGLScaling(const int w, const int h)
     OpenGLLogicalScalingHeight = h;
 
     OpenGLFuncs.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (ScaleShader) {
+        FILE * file = fopen(ScaleShader, "rb");
+        if (file) {
+            long file_len = 0;
+            char * tmp;
+            char shader_info_log_buffer[1024];
+            GLsizei shader_info_log_length = 0;
+            const char * holders[2];
+            GLint lengths[2];
+            GLuint shader = OpenGLFuncs.glCreateShader(GL_FRAGMENT_SHADER);
+            fseek(file, 0, SEEK_END);
+            file_len = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            tmp = malloc((size_t) file_len);
+            for (size_t i = 0; i < file_len; i++)
+                tmp[i] = fgetc(file);
+            holders[0] = "uniform float iTime; uniform vec2 iResolution;\n";
+            lengths[0] = strlen(holders[0]);
+            holders[1] = tmp;
+            lengths[1] = file_len;
+            OpenGLFuncs.glShaderSource(shader, 2, holders, lengths);
+            OpenGLFuncs.glCompileShader(shader);
+            OpenGLFuncs.glGetShaderInfoLog(shader, 1023, &shader_info_log_length, shader_info_log_buffer);
+            shader_info_log_buffer[shader_info_log_length] = 0;
+            SDL20_Log("Scale shader info log: \n");
+            SDL20_Log(shader_info_log_buffer);
+            SDL20_Log("\n");
+            OpenGLScaleShaderProgram = OpenGLFuncs.glCreateProgram();
+            OpenGLFuncs.glAttachShader(OpenGLScaleShaderProgram, shader);
+            OpenGLFuncs.glLinkProgram(OpenGLScaleShaderProgram);
+            OpenGLFuncs.glGetProgramInfoLog(OpenGLScaleShaderProgram, 1023, &shader_info_log_length, shader_info_log_buffer);
+            shader_info_log_buffer[shader_info_log_length] = 0;
+            SDL20_Log("Scale shader program info log: \n");
+            SDL20_Log(shader_info_log_buffer);
+            SDL20_Log("\n");
+            OpenGLScaleShaderUniformResolution = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iResolution");
+            OpenGLScaleShaderUniformTime = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iTime");
+        } else {
+            SDL20_Log("Error: The file with the scaling shader could not be opened.\n");
+        }
+    } else {
+        OpenGLScaleShaderProgram = 0;
+    }
+
     return SDL_TRUE;
 }
 
@@ -6020,7 +6068,7 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
     ScaleShaderForcedOpenGL = SDL_FALSE;
     if (ScaleShader && !(flags12 & SDL12_OPENGL)) {
         /* C2ECRT: enable SDL12_OPENGLBLIT, which gets the desired effects going */
-        fprintf(stderr, "SDL12_compat.c: scaling shader enabled OpenGL by force, %ix%i\n", width, height);
+        SDL20_Log("SDL12_compat.c: scaling shader enabled OpenGL by force, %ix%i\n", width, height);
         ScaleShaderForcedOpenGL = SDL_TRUE;
         WantOpenGLScaling = SDL_TRUE;
         flags12 |= SDL12_OPENGL;
