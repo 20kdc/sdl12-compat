@@ -1,1 +1,5 @@
 build
+# SDL2 headers for Windows end up here (one way or another...)
+src/include
+*.o
+*.a
