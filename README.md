@@ -6,6 +6,8 @@ You can supply `SDL12COMPAT_SCALE_SHADER` to have fancy custom shader effects.
 
 There are also some compat workarounds for the one specific game this is meant to be used on.
 
+The rest of this README will proceed as normal. If you are not willing to accept how messy and bad this is, USE UPSTREAM!
+
 # Simple DirectMedia Layer (SDL) sdl12-compat
 
 https://www.libsdl.org/
