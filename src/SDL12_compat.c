@@ -44,11 +44,10 @@
 #define WIN32_LEAN_AND_MEAN 1
 #endif
 #include <windows.h>
-#else
+#endif
 #include <stdio.h> /* fprintf(), etc. */
 #include <stdlib.h>    /* for abort() */
 #include <string.h>
-#endif
 
 /* mingw headers may define these ... */
 #undef strtod

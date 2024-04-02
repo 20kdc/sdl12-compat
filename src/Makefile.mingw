@@ -18,7 +18,7 @@ CPPFLAGS+= -DSDL_DISABLE_IMMINTRIN_H
 
 CFLAGS  = -O3 -Wall
 LDFLAGS = -nostdlib -shared -Wl,--no-undefined -Wl,--enable-auto-image-base -Wl,--out-implib,$(LIB)
-LDLIBS  = -lkernel32 -luser32
+LDLIBS  = -lkernel32 -luser32 -lmsvcrt
 # libgcc is needed for 32 bit (x86) builds:
 LDLIBS += -static-libgcc -lgcc
 
