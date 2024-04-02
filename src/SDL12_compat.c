@@ -1047,6 +1047,7 @@ static SDL_bool ForceGLSwapBufferContext = SDL_FALSE;
 static GLuint OpenGLScaleShaderProgram = 0;
 static GLint OpenGLScaleShaderUniformResolution = 0;
 static GLint OpenGLScaleShaderUniformTime = 0;
+static GLint OpenGLScaleShaderUniformIChannel0 = 0;
 static SDL12_TimerID AddedTimers = NULL;  /* we'll protect this with EventQueueMutex for laziness/convenience. */
 static SDL_mutex *EventQueueMutex = NULL;
 static EventQueueType EventQueuePool[SDL12_MAXEVENTS];
@@ -5796,6 +5797,10 @@ InitializeOpenGLScaling(const int w, const int h)
     OpenGLFuncs.glBindFramebuffer(GL_FRAMEBUFFER, OpenGLLogicalScalingFBO);
     OpenGLFuncs.glBindTexture(GL_TEXTURE_2D, OpenGLLogicalScalingColorTex);
     OpenGLFuncs.glTexImage2D(GL_TEXTURE_2D, 0, (alpha_size > 0) ? GL_RGBA8 : GL_RGB8, w, h, 0, (alpha_size > 0) ? GL_RGBA : GL_RGB,  GL_UNSIGNED_BYTE, NULL);
+    OpenGLFuncs.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, WantScaleMethodNearest ? GL_NEAREST : GL_LINEAR);
+    OpenGLFuncs.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, WantScaleMethodNearest ? GL_NEAREST : GL_LINEAR);
+    OpenGLFuncs.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    OpenGLFuncs.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     OpenGLFuncs.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, OpenGLLogicalScalingColorTex, 0);
 
     if (depth_size || stencil_size) {
@@ -5847,7 +5852,7 @@ InitializeOpenGLScaling(const int w, const int h)
             tmp = malloc((size_t) file_len);
             for (size_t i = 0; i < file_len; i++)
                 tmp[i] = fgetc(file);
-            holders[0] = "uniform float iTime; uniform vec2 iResolution;\n";
+            holders[0] = "#version 120\nuniform sampler2D iChannel0; uniform float iTime; uniform vec2 iResolution;\n";
             lengths[0] = strlen(holders[0]);
             holders[1] = tmp;
             lengths[1] = file_len;
@@ -5868,6 +5873,7 @@ InitializeOpenGLScaling(const int w, const int h)
             SDL20_Log("\n");
             OpenGLScaleShaderUniformResolution = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iResolution");
             OpenGLScaleShaderUniformTime = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iTime");
+            OpenGLScaleShaderUniformIChannel0 = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iChannel0");
         } else {
             SDL20_Log("Error: The file with the scaling shader could not be opened.\n");
         }
@@ -7866,15 +7872,49 @@ SDL_GL_SwapBuffers(void)
                 OpenGLFuncs.glDisable(GL_SCISSOR_TEST);  /* scissor test affects framebuffer_blit */
             }
 
-            OpenGLFuncs.glBindFramebuffer(GL_READ_FRAMEBUFFER, OpenGLLogicalScalingFBO);
-
-            OpenGLFuncs.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            OpenGLFuncs.glBindFramebuffer(GL_FRAMEBUFFER, 0);
             OpenGLFuncs.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             OpenGLFuncs.glClear(GL_COLOR_BUFFER_BIT);
-            OpenGLFuncs.glBlitFramebuffer(0, 0, OpenGLLogicalScalingWidth, OpenGLLogicalScalingHeight,
-                                          dstrect.x, dstrect.y, dstrect.x + dstrect.w, dstrect.y + dstrect.h,
-                                          GL_COLOR_BUFFER_BIT, WantScaleMethodNearest ? GL_NEAREST : GL_LINEAR);
-            OpenGLFuncs.glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            /* C2ECRT: replaced drawing code YES I KNOW THIS CLOBBERS GL STATE */
+            OpenGLFuncs.glViewport(0, 0, physical_w, physical_h);
+            OpenGLFuncs.glMatrixMode(GL_PROJECTION);
+            OpenGLFuncs.glPushMatrix();
+            OpenGLFuncs.glLoadIdentity();
+            OpenGLFuncs.glOrtho(0.0, (GLdouble) physical_w, (GLdouble) physical_h, 0.0, 0.0, 1.0);
+            OpenGLFuncs.glMatrixMode(GL_MODELVIEW);
+            OpenGLFuncs.glPushMatrix();
+            OpenGLFuncs.glLoadIdentity();
+            /* C2ECRT: main draw */
+            OpenGLFuncs.glBindTexture(GL_TEXTURE_2D, OpenGLLogicalScalingColorTex);
+            if (OpenGLScaleShaderProgram) {
+                OpenGLFuncs.glUseProgram(OpenGLScaleShaderProgram);
+                OpenGLFuncs.glUniform1f(OpenGLScaleShaderUniformTime, (float) (SDL20_GetTicks() / 1000.0f));
+                OpenGLFuncs.glUniform2f(OpenGLScaleShaderUniformResolution, VideoSurface12->w, VideoSurface12->h);
+                OpenGLFuncs.glUniform1i(OpenGLScaleShaderUniformIChannel0, 0);
+            }
+            OpenGLFuncs.glBegin(GL_QUADS);
+            {
+                OpenGLFuncs.glTexCoord2f(0, 1);
+                OpenGLFuncs.glVertex2i(0, 0);
+                OpenGLFuncs.glTexCoord2f(1, 1);
+                OpenGLFuncs.glVertex2i(dstrect.w, 0);
+                OpenGLFuncs.glTexCoord2f(1, 0);
+                OpenGLFuncs.glVertex2i(dstrect.w, dstrect.h);
+                OpenGLFuncs.glTexCoord2f(0, 0);
+                OpenGLFuncs.glVertex2i(0, dstrect.h);
+            }
+            OpenGLFuncs.glEnd();
+            if (OpenGLScaleShaderProgram) {
+                OpenGLFuncs.glUseProgram(0);
+            }
+            /* C2ECRT: end main draw */
+            /* C2ECRT: clean up matrices */
+            OpenGLFuncs.glMatrixMode(GL_MODELVIEW);
+            OpenGLFuncs.glPopMatrix();
+            OpenGLFuncs.glMatrixMode(GL_PROJECTION);
+            OpenGLFuncs.glPopMatrix();
+            /* done */
             SDL20_GL_SwapWindow(VideoWindow20);
             OpenGLFuncs.glClearColor(clearcolor[0], clearcolor[1], clearcolor[2], clearcolor[3]);
             if (has_scissor) {

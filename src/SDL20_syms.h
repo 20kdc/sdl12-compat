@@ -409,6 +409,7 @@ OPENGL_SYM(Core,void,glGetProgramInfoLog,(GLuint a, GLsizei b, GLsizei *c, GLcha
 OPENGL_SYM(Core,GLint,glGetUniformLocation,(GLuint a, const GLchar *b),(a,b),return)
 OPENGL_SYM(Core,void,glUseProgram,(GLuint a),(a),)
 OPENGL_SYM(Core,void,glUniform1f,(GLint a, GLfloat b),(a,b),)
+OPENGL_SYM(Core,void,glUniform1i,(GLint a, GLint b),(a,b),)
 OPENGL_SYM(Core,void,glUniform2f,(GLint a, GLfloat b, GLfloat c),(a,b,c),)
 
 #undef SDL20_SYM
