@@ -1,3 +1,11 @@
+# Personal fork!!!
+
+This fork deliberately messes up a bunch of stuff in order to add one "feature": Shaders!
+
+You can supply `SDL12COMPAT_SCALE_SHADER` to have fancy custom shader effects.
+
+There are also some compat workarounds for the one specific game this is meant to be used on.
+
 # Simple DirectMedia Layer (SDL) sdl12-compat
 
 https://www.libsdl.org/
