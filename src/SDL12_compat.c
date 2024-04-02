@@ -1033,6 +1033,8 @@ static int OpenGLBlitLockCount = 0;
 static GLuint OpenGLBlitTexture = 0;
 static SDL_bool WantDebugLogging = SDL_FALSE;
 static SDL_bool WantScaleMethodNearest = SDL_FALSE;
+static const char *ScaleShader = NULL;
+static SDL_bool ScaleShaderForcedOpenGL = SDL_FALSE;
 static SDL_bool WantOpenGLScaling = SDL_FALSE;
 static int OpenGLLogicalScalingWidth = 0;
 static int OpenGLLogicalScalingHeight = 0;
@@ -2423,6 +2425,7 @@ Init12Video(void)
     AllowThreadedPumps = SDL12Compat_GetHintBoolean("SDL12COMPAT_ALLOW_THREADED_PUMPS", SDL_TRUE);
 
     WantScaleMethodNearest = (scale_method_env && !SDL20_strcmp(scale_method_env, "nearest")) ? SDL_TRUE : SDL_FALSE;
+    ScaleShader = SDL12Compat_GetHint("SDL12COMPAT_SCALE_SHADER");
 
     /* Only override this if the env var is set, as the default is platform-specific. */
     TranslateKeyboardLayout = SDL12Compat_GetHintBoolean("SDL12COMPAT_USE_KEYBOARD_LAYOUT", TranslateKeyboardLayout);
@@ -6014,6 +6017,16 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
 
     VideoSurface12 = &VideoSurface12Location;
 
+    ScaleShaderForcedOpenGL = SDL_FALSE;
+    if (ScaleShader && !(flags12 & SDL12_OPENGL)) {
+        /* C2ECRT: enable SDL12_OPENGLBLIT, which gets the desired effects going */
+        fprintf(stderr, "SDL12_compat.c: scaling shader enabled OpenGL by force, %ix%i\n", width, height);
+        ScaleShaderForcedOpenGL = SDL_TRUE;
+        WantOpenGLScaling = SDL_TRUE;
+        flags12 |= SDL12_OPENGL;
+        flags12 |= SDL12_OPENGLBLIT;
+    }
+
     if (flags12 & SDL12_OPENGL) {
         /* For now we default GL scaling to ENABLED. If an app breaks or is linked directly
            to glBindFramebuffer, they'll need to turn it off with this environment variable.
@@ -6164,11 +6177,8 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
             GPU, so use FULLSCREEN_DESKTOP and logical scaling there.
             If possible, we'll do this with OpenGL, too, but we might not be
             able to. */
-        if (use_gl_scaling || ((flags12 & SDL12_OPENGL) == 0) || ((dmode.w == width) && (dmode.h == height))) {
-            fullscreen_flags20 |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        } else {
-            fullscreen_flags20 |= SDL_WINDOW_FULLSCREEN;
-        }
+        /* C2ECRT: FULLSCREEN DESKTOP, ALWAYS */
+        fullscreen_flags20 |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     } else if (fix_bordless_fs_win && (flags12 & SDL12_NOFRAME) && (width == dmode.w) && (height == dmode.h)) {
         /* app appears to be trying to do a "borderless fullscreen windowed" mode, so just bump
            it to FULLSCREEN_DESKTOP so it cooperates with various display managers
@@ -6182,10 +6192,7 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
         window_size_scaling = 1.0f;  /* don't scale for external windows */
     } else if (window_size_scaling <= 0.0f) {
         window_size_scaling = 1.0f;  /* bogus value, reset to default */
-    } else if (flags12 & SDL12_RESIZABLE) {
-        window_size_scaling = 1.0f;  /* assume that resizable windows are already prepared to handle whatever without scaling. */
-    } else if ((fullscreen_flags20 & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0) {
-        window_size_scaling = 1.0f;  /* setting the window to fullscreen or fullscreen_desktop? Don't scale it. */
+    /* C2ECRT: There was logic here to disable window scaling. This logic is stupid. */
     } else if ((flags12 & SDL12_OPENGL) && !use_gl_scaling) {
         window_size_scaling = 1.0f;  /* OpenGL but not doing GL scaling? Don't allow window size scaling. */
     } else {
@@ -6993,6 +7000,7 @@ SDL_GL_Unlock(void)
     }
 }
 
+DECLSPEC12 void SDLCALL SDL_GL_SwapBuffers(void);
 
 DECLSPEC12 void SDLCALL
 SDL_UpdateRects(SDL12_Surface *surface12, int numrects, SDL12_Rect *rects12)
@@ -7004,7 +7012,16 @@ SDL_UpdateRects(SDL12_Surface *surface12, int numrects, SDL12_Rect *rects12)
 
     if ((surface12 == VideoSurface12) && ((surface12->flags & SDL12_OPENGLBLIT) == SDL12_OPENGLBLIT)) {
         SDL_GL_Lock();
-        SDL_GL_UpdateRects(numrects, rects12);
+        if (ScaleShaderForcedOpenGL) {
+            /* C2ECRT: We forced OpenGL to make scaling work...
+             * which makes us responsible for fixing things */
+            SDL12_Rect rct = {.x = 0, .y = 0, .w = surface12->w, .h = surface12->h};
+            OpenGLFuncs.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            SDL_GL_UpdateRects(1, &rct);
+            SDL_GL_SwapBuffers();
+        } else {
+            SDL_GL_UpdateRects(numrects, rects12);
+        }
         SDL_GL_Unlock();
         return;
     }
@@ -7305,7 +7322,8 @@ SDL_WM_ToggleFullScreen(SDL12_Surface *surface)
         } else {
             Uint32 newflags20;
             SDL_assert((VideoSurface12->flags & SDL12_FULLSCREEN) == 0);
-            newflags20 = (((VideoSurface12->flags & SDL12_OPENGL) == 0) || (OpenGLLogicalScalingFBO != 0)) ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+            /* C2ECRT: ALWAYS FULLSCREEN_DESKTOP!!! */
+            newflags20 = SDL_WINDOW_FULLSCREEN_DESKTOP;
             retval = (SDL20_SetWindowFullscreen(VideoWindow20, newflags20) == 0);
             if (retval) {
                 VideoSurface12->flags |= SDL12_FULLSCREEN;
