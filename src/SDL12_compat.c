@@ -5839,24 +5839,18 @@ InitializeOpenGLScaling(const int w, const int h)
     if (ScaleShader) {
         FILE * file = fopen(ScaleShader, "rb");
         if (file) {
-            long file_len = 0;
-            char * tmp;
+            GLsizei file_len = 0;
+            GLchar * tmp;
             char shader_info_log_buffer[1024];
             GLsizei shader_info_log_length = 0;
-            const char * holders[2];
-            GLint lengths[2];
             GLuint shader = OpenGLFuncs.glCreateShader(GL_FRAGMENT_SHADER);
             fseek(file, 0, SEEK_END);
-            file_len = ftell(file);
+            file_len = (GLsizei) ftell(file);
             fseek(file, 0, SEEK_SET);
             tmp = malloc((size_t) file_len);
             for (size_t i = 0; i < file_len; i++)
                 tmp[i] = fgetc(file);
-            holders[0] = "#version 120\nuniform sampler2D iChannel0; uniform float iTime; uniform vec2 iResolution;\n";
-            lengths[0] = strlen(holders[0]);
-            holders[1] = tmp;
-            lengths[1] = file_len;
-            OpenGLFuncs.glShaderSource(shader, 2, holders, lengths);
+            OpenGLFuncs.glShaderSource(shader, 2, (const GLchar **) &tmp, &file_len);
             OpenGLFuncs.glCompileShader(shader);
             OpenGLFuncs.glGetShaderInfoLog(shader, 1023, &shader_info_log_length, shader_info_log_buffer);
             shader_info_log_buffer[shader_info_log_length] = 0;

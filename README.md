@@ -4,6 +4,8 @@ This fork deliberately messes up a bunch of stuff in order to add one "feature":
 
 You can supply `SDL12COMPAT_SCALE_SHADER` to have fancy custom shader effects.
 
+See `shaders/` directory for examples.
+
 There are also some compat workarounds for the one specific game this is meant to be used on.
 
 The rest of this README will proceed as normal. If you are not willing to accept how messy and bad this is, USE UPSTREAM!
