@@ -1039,9 +1039,8 @@ static SDL_bool WantOpenGLScaling = SDL_FALSE;
 static int OpenGLLogicalScalingWidth = 0;
 static int OpenGLLogicalScalingHeight = 0;
 static GLuint OpenGLLogicalScalingFBO = 0;
-static GLuint OpenGLLogicalScalingColor = 0;
+static GLuint OpenGLLogicalScalingColorTex = 0;
 static GLuint OpenGLLogicalScalingDepth = 0;
-static int OpenGLLogicalScalingSamples = 0;
 static GLuint OpenGLCurrentReadFBO = 0;
 static GLuint OpenGLCurrentDrawFBO = 0;
 static SDL_bool ForceGLSwapBufferContext = SDL_FALSE;
@@ -5635,7 +5634,7 @@ EndVidModeCreate(void)
     OpenGLLogicalScalingWidth = 0;
     OpenGLLogicalScalingHeight = 0;
     OpenGLLogicalScalingFBO = 0;
-    OpenGLLogicalScalingColor = 0;
+    OpenGLLogicalScalingColorTex = 0;
     OpenGLLogicalScalingDepth = 0;
 
     MouseInputIsRelative = SDL_FALSE;
@@ -5786,8 +5785,8 @@ InitializeOpenGLScaling(const int w, const int h)
         OpenGLFuncs.glGenFramebuffers(1, &OpenGLLogicalScalingFBO);
     }
 
-    if (!OpenGLLogicalScalingColor) {
-        OpenGLFuncs.glGenRenderbuffers(1, &OpenGLLogicalScalingColor);
+    if (!OpenGLLogicalScalingColorTex) {
+        OpenGLFuncs.glGenTextures(1, &OpenGLLogicalScalingColorTex);
     }
 
     if (!OpenGLLogicalScalingDepth) {
@@ -5795,13 +5794,13 @@ InitializeOpenGLScaling(const int w, const int h)
     }
 
     OpenGLFuncs.glBindFramebuffer(GL_FRAMEBUFFER, OpenGLLogicalScalingFBO);
-    OpenGLFuncs.glBindRenderbuffer(GL_RENDERBUFFER, OpenGLLogicalScalingColor);
-    OpenGLFuncs.glRenderbufferStorageMultisample(GL_RENDERBUFFER, OpenGLLogicalScalingSamples, (alpha_size > 0) ? GL_RGBA8 : GL_RGB8, w, h);
-    OpenGLFuncs.glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, OpenGLLogicalScalingColor);
+    OpenGLFuncs.glBindTexture(GL_TEXTURE_2D, OpenGLLogicalScalingColorTex);
+    OpenGLFuncs.glTexImage2D(GL_TEXTURE_2D, 0, (alpha_size > 0) ? GL_RGBA8 : GL_RGB8, w, h, 0, (alpha_size > 0) ? GL_RGBA : GL_RGB,  GL_UNSIGNED_BYTE, NULL);
+    OpenGLFuncs.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, OpenGLLogicalScalingColorTex, 0);
 
     if (depth_size || stencil_size) {
         OpenGLFuncs.glBindRenderbuffer(GL_RENDERBUFFER, OpenGLLogicalScalingDepth);
-        OpenGLFuncs.glRenderbufferStorageMultisample(GL_RENDERBUFFER, OpenGLLogicalScalingSamples, GL_DEPTH24_STENCIL8, w, h);
+        OpenGLFuncs.glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
         if (depth_size) {
             OpenGLFuncs.glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, OpenGLLogicalScalingDepth);
         }
@@ -5814,10 +5813,10 @@ InitializeOpenGLScaling(const int w, const int h)
 
     if ((OpenGLFuncs.glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) || OpenGLFuncs.glGetError()) {
         OpenGLFuncs.glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        OpenGLFuncs.glDeleteRenderbuffers(1, &OpenGLLogicalScalingColor);
+        OpenGLFuncs.glDeleteTextures(1, &OpenGLLogicalScalingColorTex);
         OpenGLFuncs.glDeleteRenderbuffers(1, &OpenGLLogicalScalingDepth);
         OpenGLFuncs.glDeleteFramebuffers(1, &OpenGLLogicalScalingFBO);
-        OpenGLLogicalScalingFBO = OpenGLLogicalScalingColor = OpenGLLogicalScalingDepth = 0;
+        OpenGLLogicalScalingFBO = OpenGLLogicalScalingColorTex = OpenGLLogicalScalingDepth = 0;
         return SDL_FALSE;
     }
 
@@ -6080,7 +6079,7 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
             OpenGLLogicalScalingWidth = 0;
             OpenGLLogicalScalingHeight = 0;
             OpenGLLogicalScalingFBO = 0;
-            OpenGLLogicalScalingColor = 0;
+            OpenGLLogicalScalingColorTex = 0;
             OpenGLLogicalScalingDepth = 0;
         }
     }
@@ -6137,12 +6136,6 @@ SetVideoModeImpl(int width, int height, int bpp, Uint32 flags12)
         /* most platforms didn't check these environment variables, but the major
            ones did (x11, windib, quartz), so we'll just offer it everywhere. */
         GetEnvironmentWindowPosition(&x, &y);
-
-        /* If GL scaling is disabled, and a multisampled buffer is requested, do it. */
-        if (!use_gl_scaling && (flags12 & SDL12_OPENGL) && OpenGLLogicalScalingSamples) {
-            SDL20_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-            SDL20_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, OpenGLLogicalScalingSamples);
-        }
 
         VideoWindow20 = SDL20_CreateWindow(WindowTitle, x, y, scaled_width, scaled_height, flags20);
         if (!VideoWindow20) {
@@ -7803,7 +7796,6 @@ SDL_GL_SetAttribute(SDL12_GLattr attr, int value)
         return 0;
     }
     if (attr == SDL12_GL_MULTISAMPLESAMPLES) {
-        OpenGLLogicalScalingSamples = value;
         return 0;
     }
     if (attr == SDL12_GL_MULTISAMPLEBUFFERS) {
@@ -7826,11 +7818,11 @@ SDL_GL_GetAttribute(SDL12_GLattr attr, int* value)
         return 0;
     }
     if (attr == SDL12_GL_MULTISAMPLESAMPLES) {
-        *value = OpenGLLogicalScalingSamples;
+        *value = 1;
         return 0;
     }
     if (attr == SDL12_GL_MULTISAMPLEBUFFERS) {
-        *value = (OpenGLLogicalScalingSamples) ? 1 : 0;
+        *value = 0;
         return 0;
     }
 

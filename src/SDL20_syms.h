@@ -392,6 +392,7 @@ OPENGL_SYM(GL_ARB_framebuffer_object,void,glDeleteFramebuffers,(GLsizei a, const
 OPENGL_SYM(GL_ARB_framebuffer_object,void,glGenFramebuffers,(GLsizei a, GLuint *b),(a,b),)
 OPENGL_SYM(GL_ARB_framebuffer_object,GLenum,glCheckFramebufferStatus,(GLenum a),(a),return)
 OPENGL_SYM(GL_ARB_framebuffer_object,void,glFramebufferRenderbuffer,(GLenum a, GLenum b, GLenum c, GLuint d),(a,b,c,d),)
+OPENGL_SYM(GL_ARB_framebuffer_object,void,glFramebufferTexture2D,(GLenum a, GLenum b, GLenum c, GLuint d, GLint e),(a,b,c,d,e),)
 OPENGL_SYM(GL_ARB_framebuffer_object,void,glBlitFramebuffer,(GLint a, GLint b, GLint c, GLint d, GLint e, GLint f, GLint g, GLint h, GLbitfield i, GLenum j),(a,b,c,d,e,f,g,h,i,j),)
 
 OPENGL_EXT(GL_ARB_texture_non_power_of_two)
