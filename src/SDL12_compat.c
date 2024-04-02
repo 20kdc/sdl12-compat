@@ -2416,7 +2416,7 @@ static int
 Init12Video(void)
 {
     const char *driver = SDL20_GetCurrentVideoDriver();
-    const char *scale_method_env = SDL12Compat_GetHint("SDL12COMPAT_SCALE_METHOD");
+    const char *scale_method_env;
     const unsigned max_bpp = SDL12Compat_GetHintInt("SDL12COMPAT_MAX_BPP", 32);
     SDL_DisplayMode mode;
     int i;
@@ -2424,8 +2424,9 @@ Init12Video(void)
     AllowThreadedDraws = SDL12Compat_GetHintBoolean("SDL12COMPAT_ALLOW_THREADED_DRAWS", SDL_TRUE);
     AllowThreadedPumps = SDL12Compat_GetHintBoolean("SDL12COMPAT_ALLOW_THREADED_PUMPS", SDL_TRUE);
 
+    scale_method_env = SDL12Compat_GetHint("SDL12COMPAT_SCALE_METHOD");
     WantScaleMethodNearest = (scale_method_env && !SDL20_strcmp(scale_method_env, "nearest")) ? SDL_TRUE : SDL_FALSE;
-    ScaleShader = SDL12Compat_GetHint("SDL12COMPAT_SCALE_SHADER");
+    ScaleShader = SDL20_strdup(SDL12Compat_GetHint("SDL12COMPAT_SCALE_SHADER"));
 
     /* Only override this if the env var is set, as the default is platform-specific. */
     TranslateKeyboardLayout = SDL12Compat_GetHintBoolean("SDL12COMPAT_USE_KEYBOARD_LAYOUT", TranslateKeyboardLayout);
@@ -5873,7 +5874,9 @@ InitializeOpenGLScaling(const int w, const int h)
             OpenGLScaleShaderUniformTime = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iTime");
             OpenGLScaleShaderUniformIChannel0 = OpenGLFuncs.glGetUniformLocation(OpenGLScaleShaderProgram, "iChannel0");
         } else {
-            SDL20_Log("Error: The file with the scaling shader could not be opened.\n");
+            SDL20_Log("Error: The file with the scaling shader {");
+            SDL20_Log(ScaleShader);
+            SDL20_Log("} could not be opened.\n");
         }
     } else {
         OpenGLScaleShaderProgram = 0;
