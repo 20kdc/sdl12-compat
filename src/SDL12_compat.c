@@ -44,10 +44,11 @@
 #define WIN32_LEAN_AND_MEAN 1
 #endif
 #include <windows.h>
-#endif
+#else
 #include <stdio.h> /* fprintf(), etc. */
 #include <stdlib.h>    /* for abort() */
 #include <string.h>
+#endif
 
 /* mingw headers may define these ... */
 #undef strtod
@@ -5757,6 +5758,10 @@ glBindFramebuffer_shim_for_scaling(GLenum target, GLuint name)
     OpenGLFuncs.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OpenGLCurrentDrawFBO);
 }
 
+static SDL_INLINE Sint64 SDLCALL SDL20_RWseek(SDL_RWops *ctx, Sint64 ofs, int whence);
+static SDL_INLINE size_t SDLCALL SDL20_RWread(SDL_RWops *ctx, void *ptr, size_t size, size_t n);
+static SDL_INLINE int SDLCALL SDL20_RWclose(SDL_RWops *ctx);
+
 static SDL_bool
 InitializeOpenGLScaling(const int w, const int h)
 {
@@ -5836,19 +5841,19 @@ InitializeOpenGLScaling(const int w, const int h)
     OpenGLFuncs.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (ScaleShader) {
-        FILE * file = fopen(ScaleShader, "rb");
+        SDL_RWops * file = SDL20_RWFromFile(ScaleShader, "rb");
         if (file) {
             GLsizei file_len = 0;
             GLchar * tmp;
             char shader_info_log_buffer[1024];
             GLsizei shader_info_log_length = 0;
             GLuint shader = OpenGLFuncs.glCreateShader(GL_FRAGMENT_SHADER);
-            fseek(file, 0, SEEK_END);
-            file_len = (GLsizei) ftell(file);
-            fseek(file, 0, SEEK_SET);
+            file_len = (GLsizei) SDL20_RWseek(file, 0, RW_SEEK_END);
+            SDL20_RWseek(file, 0, RW_SEEK_SET);
             tmp = malloc((size_t) file_len);
             for (size_t i = 0; i < file_len; i++)
-                tmp[i] = fgetc(file);
+                SDL20_RWread(file, tmp + i, 1, 1);
+            SDL20_RWclose(file);
             OpenGLFuncs.glShaderSource(shader, 2, (const GLchar **) &tmp, &file_len);
             OpenGLFuncs.glCompileShader(shader);
             OpenGLFuncs.glGetShaderInfoLog(shader, 1023, &shader_info_log_length, shader_info_log_buffer);
