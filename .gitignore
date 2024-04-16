@@ -4,3 +4,4 @@ src/include
 *.o
 *.a
 *.dll
+release.zip

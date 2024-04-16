@@ -1,0 +1,20 @@
+this is a patched personal fork of sdl12-compat
+
+the fork: https://github.com/20kdc/sdl12-compat
+original upstream code: https://github.com/libsdl-org/sdl12-compat
+
+reminder: no warranty is provided, implied or otherwise
+
+binaries are only released due to interest overlapping with c3ds-projects
+
+Linux binaries would be provided, but I'd need to fix stuff like "dlclose@GLIBC_2.34"
+
+Linux .sh:
+
+export SDL12COMPAT_SCALE_SHADER=shaders/crt.glsl
+
+Windows .bat:
+
+set SDL12COMPAT_SCALE_SHADER=shaders/crt.glsl
+
+check console for errors
